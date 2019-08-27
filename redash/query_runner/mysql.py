@@ -8,6 +8,8 @@ from redash.utils import json_dumps, json_loads
 
 try:
     import MySQLdb
+    from MySQLdb.constants import FLAG
+    from MySQLdb.converters import _bytes_or_str
     enabled = True
 except ImportError:
     enabled = False
@@ -115,6 +117,7 @@ class Mysql(BaseSQLQueryRunner):
                       charset='utf8',
                       use_unicode=True,
                       connect_timeout=60)
+        MySQLdb.converters._bytes_or_str = ((FLAG.BINARY, buffer), (None, unicode))
 
         ssl_options = self._get_ssl_parameters()
 
