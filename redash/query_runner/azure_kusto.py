@@ -11,7 +11,11 @@ from redash.utils import json_dumps, json_loads
 
 
 try:
-    from azure.kusto.data.request import KustoClient, KustoConnectionStringBuilder, ClientRequestProperties
+    from azure.kusto.data import (
+        KustoClient,
+        KustoConnectionStringBuilder,
+        ClientRequestProperties,
+    )
     from azure.kusto.data.exceptions import KustoServiceError
 
     enabled = True
@@ -40,8 +44,6 @@ class AzureKusto(BaseQueryRunner):
     def __init__(self, configuration):
         super(AzureKusto, self).__init__(configuration)
         self.syntax = "custom"
-        self.client_request_properties = ClientRequestProperties()
-        self.client_request_properties.application = "redash"
 
     @classmethod
     def configuration_schema(cls):
@@ -56,12 +58,14 @@ class AzureKusto(BaseQueryRunner):
                 },
                 "azure_ad_tenant_id": {"type": "string", "title": "Azure AD Tenant Id"},
                 "database": {"type": "string"},
+                "msi": {"type": "boolean", "title": "Use Managed Service Identity"},
+                "user_msi": {
+                    "type": "string",
+                    "title": "User-assigned managed identity",
+                },
             },
             "required": [
                 "cluster",
-                "azure_ad_client_id",
-                "azure_ad_client_secret",
-                "azure_ad_tenant_id",
                 "database",
             ],
             "order": [
@@ -88,6 +92,22 @@ class AzureKusto(BaseQueryRunner):
 
     def run_query(self, query, user):
 
+        # Managed Service Identity(MSI)
+        # if self.configuration["msi"]:
+        #     # User Assigned MSI
+        #     if self.configuration["user_msi"]:
+        #         kcsb = KustoConnectionStringBuilder.with_aad_managed_service_identity_authentication(
+        #             cluster=self.configuration["cluster"],
+        #             client_id=self.configuration["user_msi"],
+        #         )
+        #     # System Assigned MSI
+        #     else:
+        #         kcsb = KustoConnectionStringBuilder.with_aad_managed_service_identity_authentication(
+        #             cluster=self.configuration["cluster"]
+        #         )
+        # # Service principal
+        # else:
+
         kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(
             connection_string=self.configuration["cluster"],
             aad_app_id=self.configuration["azure_ad_client_id"],
@@ -97,9 +117,16 @@ class AzureKusto(BaseQueryRunner):
 
         client = KustoClient(kcsb)
 
+        request_properties = ClientRequestProperties()
+        request_properties.application = "redash"
+
+        if user:
+            request_properties.user = user.email
+            request_properties.set_option("request_description", user.email)
+
         db = self.configuration["database"]
         try:
-            response = client.execute(db, query, self.client_request_properties)
+            response = client.execute(db, query, request_properties)
 
             result_cols = response.primary_results[0].columns
             result_rows = response.primary_results[0].rows
@@ -125,10 +152,7 @@ class AzureKusto(BaseQueryRunner):
 
         except KustoServiceError as err:
             json_data = None
-            try:
-                error = err.args[1][0]["error"]["@message"]
-            except (IndexError, KeyError):
-                error = err.args[1]
+            error = err.args[0][0]["error"]["@message"]
 
         return json_data, error
 
@@ -143,9 +167,18 @@ class AzureKusto(BaseQueryRunner):
         results = json_loads(results)
 
         schema_as_json = json_loads(results["rows"][0]["DatabaseSchema"])
-        tables_list = schema_as_json["Databases"][self.configuration["database"]][
-            "Tables"
-        ].values()
+        tables_list = [
+            *(
+                schema_as_json["Databases"][self.configuration["database"]][
+                    "Tables"
+                ].values()
+            ),
+            *(
+                schema_as_json["Databases"][self.configuration["database"]][
+                    "MaterializedViews"
+                ].values()
+            ),
+        ]
 
         schema = {}
 

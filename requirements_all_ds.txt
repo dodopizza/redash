@@ -31,7 +31,7 @@ phoenixdb==0.7
 # certifi is needed to support MongoDB and SSL:
 certifi>=2019.9.11
 pydgraph==2.0.2
-azure-kusto-data==0.0.35
+azure-kusto-data==2.1.0
 pyexasol==0.12.0
 python-rapidjson==0.8.0
 pyodbc==4.0.28
