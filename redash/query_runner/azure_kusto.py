@@ -61,7 +61,7 @@ class AzureKusto(BaseQueryRunner):
                 "msi": {"type": "boolean", "title": "Use Managed Service Identity"},
                 "user_msi": {
                     "type": "string",
-                    "title": "User-assigned managed identity",
+                    "title": "User-assigned managed identity client id",
                 },
             },
             "required": [
@@ -92,24 +92,21 @@ class AzureKusto(BaseQueryRunner):
 
     def run_query(self, query, user):
 
+        cluster = self.configuration["cluster"]
         # Managed Service Identity(MSI)
         # if self.configuration["msi"]:
-        #     # User Assigned MSI
-        #     if self.configuration["user_msi"]:
-        #         kcsb = KustoConnectionStringBuilder.with_aad_managed_service_identity_authentication(
-        #             cluster=self.configuration["cluster"],
-        #             client_id=self.configuration["user_msi"],
-        #         )
-        #     # System Assigned MSI
-        #     else:
-        #         kcsb = KustoConnectionStringBuilder.with_aad_managed_service_identity_authentication(
-        #             cluster=self.configuration["cluster"]
-        #         )
-        # # Service principal
+        #     kcsb = KustoConnectionStringBuilder.with_aad_managed_service_identity_authentication(
+        #         cluster,
+        #         client_id="186a54df-8b56-4d5d-a93e-945bc1faaedc"
+        #     )
+        # elif self.configuration["msi"] and self.configuration["user_msi"]:
+        #     kcsb = KustoConnectionStringBuilder.with_aad_managed_service_identity_authentication(
+        #         cluster,
+        #         client_id=self.configuration["user_msi"],
+        #     )
         # else:
-
         kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(
-            connection_string=self.configuration["cluster"],
+            connection_string=cluster,
             aad_app_id=self.configuration["azure_ad_client_id"],
             app_key=self.configuration["azure_ad_client_secret"],
             authority_id=self.configuration["azure_ad_tenant_id"],
