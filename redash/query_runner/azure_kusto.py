@@ -93,13 +93,14 @@ class AzureKusto(BaseQueryRunner):
     def run_query(self, query, user):
 
         cluster = self.configuration["cluster"]
+        msi = self.configuration.get("msi", False)
         # Managed Service Identity(MSI)
-        if self.configuration["msi"]:
+        if msi:
             kcsb = KustoConnectionStringBuilder.with_aad_managed_service_identity_authentication(
                 cluster
             )
         # Specific user assigned Managed Service Identity
-        elif self.configuration["msi"] and self.configuration["user_msi"]:
+        elif msi and self.configuration["user_msi"]:
             kcsb = KustoConnectionStringBuilder.with_aad_managed_service_identity_authentication(
                 cluster,
                 client_id=self.configuration["user_msi"],
