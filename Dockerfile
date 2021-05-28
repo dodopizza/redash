@@ -56,6 +56,8 @@ RUN apt-get update && \
     freetds-dev \
     libsasl2-dev \
     unzip \
+    telnet\
+    postgresql-client\
     libsasl2-modules-gssapi-mit && \
   # MSSQL ODBC Driver:
   curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
